@@ -20,16 +20,33 @@ jobs:
       - name: Get project files
         uses: actions/checkout@v4
 
+      - name: Check ZIP file
+        run: |
+          if [ ! -f STAR_BAGS_Android_Project_WhatsApp_Fix_v1.zip ]; then
+            echo "ERROR: Project ZIP file not found!"
+            exit 1
+          fi
+          echo "ZIP file found successfully."
+
       - name: Extract Android project
         run: |
           mkdir -p project
           unzip -q STAR_BAGS_Android_Project_WhatsApp_Fix_v1.zip -d project
-          echo "Project extracted"
+          echo "Project extracted successfully."
 
       - name: Find Android project
         run: |
-          PROJECT_DIR=$(dirname "$(find project -name settings.gradle -o -name settings.gradle.kts | head -n 1)")
+          SETTINGS_FILE=$(find project -type f \( -name settings.gradle -o -name settings.gradle.kts \) -print -quit)
+
+          if [ -z "$SETTINGS_FILE" ]; then
+            echo "ERROR: Android settings.gradle not found!"
+            exit 1
+          fi
+
+          PROJECT_DIR=$(dirname "$SETTINGS_FILE")
+
           echo "PROJECT_DIR=$PROJECT_DIR" >> $GITHUB_ENV
+
           echo "Project directory: $PROJECT_DIR"
 
       - name: Set up Java
@@ -38,13 +55,18 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Gradle
-  uses: gradle/actions/setup-gradle@v4
-  with:
-    gradle-version: '8.9'
+      - name: Set up Gradle 8.9
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Verify Gradle version
+        run: |
+          gradle --version
 
       - name: Build Debug APK
-        run: gradle -p "$PROJECT_DIR" assembleDebug
+        run: |
+          gradle -p "$PROJECT_DIR" assembleDebug --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
@@ -52,4 +74,3 @@ jobs:
           name: STAR-BAGS-Android-APK
           path: project/**/build/outputs/apk/debug/*.apk
           if-no-files-found: error
-
