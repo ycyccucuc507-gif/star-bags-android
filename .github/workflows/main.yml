@@ -29,12 +29,23 @@ jobs:
       - name: Extract Android project
         run: |
           unzip -q STAR_BAGS_Android_Project_WhatsApp_Fix_v2_Stage2.zip -d project
-          echo "Project extracted successfully"
-          find project -name gradlew -type f
+          echo "Extracted project files:"
+          find project -maxdepth 5 -name gradlew -o -name settings.gradle -o -name settings.gradle.kts
+
+      - name: Locate Gradle wrapper
+        run: |
+          WRAPPER="$(find project -type f -name gradlew -print -quit)"
+          if [ -z "$WRAPPER" ]; then
+            echo "ERROR: gradlew was not found inside the ZIP."
+            exit 1
+          fi
+          PROJECT_DIR="$(dirname "$WRAPPER")"
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+          echo "Gradle project found at: $PROJECT_DIR"
 
       - name: Build APK
         run: |
-          cd project/STAR_BAGS_Android_Project
+          cd "$PROJECT_DIR"
           chmod +x gradlew
           ./gradlew assembleDebug
 
@@ -42,5 +53,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: STAR-BAGS-APK
-          path: project/STAR_BAGS_Android_Project/app/build/outputs/apk/debug/*.apk
+          path: project/**/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
